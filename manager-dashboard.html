@@ -288,31 +288,47 @@ function init() {
   loadData();
 }
 
-// JSONP fetch — bypasses CORS completely
+function processData(raw) {
+  return raw.map(r=>({
+    name: String(r.name||'').trim(),
+    email: String(r.email||'').trim().toLowerCase(),
+    type: String(r.type||'').trim().toUpperCase(),
+    date: nd(String(r.date||'')),
+    time: String(r.time||'').trim(),
+    notes: String(r.notes||'').trim(),
+    timestamp: String(r.timestamp||'')
+  })).filter(r=>r.name&&r.email&&r.date);
+}
+
 function loadData() {
   toast('Loading...');
-  const cb = 'tpcb_'+Date.now();
-  const s = document.createElement('script');
+  const cb = 'tpcb_' + Date.now();
+  const timeout = setTimeout(() => {
+    if (window[cb]) {
+      delete window[cb];
+      toast('Timeout — try again', 'error');
+    }
+  }, 15000);
   window[cb] = function(res) {
-    delete window[cb]; s.remove();
+    clearTimeout(timeout);
+    delete window[cb];
     if (res && res.data) {
-      D = res.data.map(r=>({
-        name: String(r.name||'').trim(),
-        email: String(r.email||'').trim().toLowerCase(),
-        type: String(r.type||'').trim().toUpperCase(),
-        date: nd(String(r.date||'')),
-        time: String(r.time||'').trim(),
-        notes: String(r.notes||'').trim(),
-        timestamp: String(r.timestamp||'')
-      })).filter(r=>r.name&&r.email&&r.date);
+      D = processData(res.data);
       refreshAll();
-      toast(`${D.length} records loaded ✓`,'success');
+      toast(D.length + ' records loaded', 'success');
     } else {
-      toast('No data received','error');
+      toast('No data found', 'error');
     }
   };
-  s.onerror = ()=>{ delete window[cb]; s.remove(); toast('Connection failed','error'); };
-  s.src = SCRIPT_URL + '?callback='+cb;
+  const s = document.createElement('script');
+  s.type = 'text/javascript';
+  s.onerror = function() {
+    clearTimeout(timeout);
+    delete window[cb];
+    this.remove();
+    toast('Connection failed', 'error');
+  };
+  s.src = SCRIPT_URL + '?callback=' + cb + '&t=' + Date.now();
   document.head.appendChild(s);
 }
 
