@@ -840,7 +840,7 @@ function generateDemoData() {
     const date = new Date(today);
     date.setDate(today.getDate() - d);
     if (date.getDay() === 0 || date.getDay() === 6) continue;
-    const dateStr = date.toLocaleDateString('en-GB');
+    const dd2 = String(d.getDate()).padStart(2,'0'); const mm2 = String(d.getMonth()+1).padStart(2,'0'); const dateStr = `${dd2}/${mm2}/${d.getFullYear()}`;
     employees.forEach(emp => {
       if (Math.random() > 0.1) {
         const inH = 8 + Math.floor(Math.random()*2);
@@ -869,9 +869,23 @@ function refreshAll() {
 }
 
 // ---- OVERVIEW ----
+function getTodayStr() {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2,"0");
+  const mm = String(now.getMonth()+1).padStart(2,"0");
+  return `${dd}/${mm}/${now.getFullYear()}`;
+}
+
+function normalizeDate(d) {
+  if (!d) return "";
+  const parts = d.toString().split("/");
+  if (parts.length === 3) return `${parts[0].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${parts[2]}`;
+  return d.toString();
+}
+
 function updateOverview() {
-  const today = new Date().toLocaleDateString('en-GB');
-  const todayData = allData.filter(r => r.date === today);
+  const today = getTodayStr();
+  const todayData = allData.filter(r => normalizeDate(r.date) === normalizeDate(today));
   const employees = [...new Set(allData.map(r => r.email))];
   const presentToday = [...new Set(todayData.map(r => r.email))];
 
@@ -893,7 +907,7 @@ function updateOverview() {
 }
 
 function calcHoursForDay(email, date) {
-  const entries = allData.filter(r => r.email === email && r.date === date);
+  const entries = allData.filter(r => r.email === email && normalizeDate(r.date) === normalizeDate(date));
   const ins = entries.filter(r => r.type === 'CHECK-IN');
   const outs = entries.filter(r => r.type === 'CHECK-OUT');
   if (ins.length === 0 || outs.length === 0) return 0;
@@ -904,19 +918,19 @@ function calcHoursForDay(email, date) {
 
 function timeToMinutes(t) {
   if (!t) return 0;
-  const parts = t.split(':');
-  return parseInt(parts[0])*60 + parseInt(parts[1]);
+  const parts = t.toString().split(':');
+  return parseInt(parts[0]||0)*60 + parseInt(parts[1]||0);
 }
 
 function renderTodayTable(today) {
-  const employees = [...new Set(allData.filter(r => r.date === today).map(r => r.email))];
+  const employees = [...new Set(allData.filter(r => normalizeDate(r.date) === normalizeDate(today)).map(r => r.email))];
   const tbody = document.getElementById('todayTable');
   if (employees.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📭</div><p>No activity today yet</p></div></td></tr>`;
     return;
   }
   tbody.innerHTML = employees.map((email, i) => {
-    const entries = allData.filter(r => r.email === email && r.date === today);
+    const entries = allData.filter(r => r.email === email && normalizeDate(r.date) === normalizeDate(today));
     const inEntry = entries.find(r => r.type === 'CHECK-IN');
     const outEntry = entries.slice().reverse().find(r => r.type === 'CHECK-OUT');
     const hours = calcHoursForDay(email, today);
@@ -943,7 +957,7 @@ function renderWeekChart() {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const dateStr = d.toLocaleDateString('en-GB');
+    const dd3 = String(d.getDate()).padStart(2,'0'); const mm3 = String(d.getMonth()+1).padStart(2,'0'); const dateStr = `${dd3}/${mm3}/${d.getFullYear()}`;
     const dayLabel = d.toLocaleDateString('en-US', {weekday:'short'});
     labels.push(dayLabel);
     const employees = [...new Set(allData.filter(r => r.date === dateStr).map(r => r.email))];
@@ -1017,7 +1031,7 @@ function updateEmployeeCards() {
     let totalHours = 0;
     dates.forEach(d => { totalHours += calcHoursForDay(email, d); });
     const avgHours = dates.length > 0 ? totalHours / dates.length : 0;
-    const today = new Date().toLocaleDateString('en-GB');
+    const today = getTodayStr();
     const todayH = calcHoursForDay(email, today);
     const color = COLORS[i % COLORS.length];
     return `<div class="emp-card fade-in">
@@ -1172,7 +1186,7 @@ function exportCSV() {
   if (empFilter) filtered = filtered.filter(r => r.email === empFilter);
   if (dateFilter) {
     const d = new Date(dateFilter);
-    filtered = filtered.filter(r => r.date === d.toLocaleDateString('en-GB'));
+    const df = new Date(dateFilter); const dfd = String(df.getDate()).padStart(2,'0'); const dfm = String(df.getMonth()+1).padStart(2,'0'); const dateStr2 = `${dfd}/${dfm}/${df.getFullYear()}`; filtered = filtered.filter(r => normalizeDate(r.date) === normalizeDate(dateStr2));
   }
   downloadCSV(filtered, 'attendance-logs.csv');
 }
